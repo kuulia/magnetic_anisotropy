@@ -37,42 +37,31 @@ def main():
         intensity_min_max, = [pd.DataFrame(), pd.DataFrame(), pd.DataFrame(),
                               pd.DataFrame(), pd.DataFrame(),]
     ############################################################################
-    for deg in degs: #process data for each degree
+    for deg in degs: # process data for each degree
         col = f'{deg}deg' # column name, 
-        # 1: read data, 2: calc gradient, 3: substract saturation gradient
-        # 4: apply min max scaler
+        ########################################################################
+        # read data
         applied[col] = file_reader(f'{col}/loop_data.txt', 0, 9)
         ########################################################################
-        # 1: read data
+        # read data
         intensity[col] = file_reader(f'{deg}deg/loop_data.txt', 10, 24)
+        # apply min max scaler
         intensity_min_max[col] = min_max_scaler(intensity[col])
-        # 2: calc gradient
-        intensity_grad[col] = np.gradient(intensity_min_max[col])
-        # calculate the mean of gradient
-        grad_saturated_head = (np.mean(intensity_grad.head(20)))
-        grad_saturated_tail = (np.mean(intensity_grad.tail(20)))
-        head_len = m.floor(len(intensity_grad[col]) / 2)
-        tail_len = m.ceil(len(intensity_grad[col]) / 2)
-        head = grad_saturated_head * np.ones(head_len)
-        tail = grad_saturated_tail * np.ones(tail_len)
-        #arr = np.concatenate((head, tail))
-        x = np.where(np.abs(intensity_grad[col]) >= 0.2, 0, 1)
-        grads = intensity_grad[col].values * x
+        # calculate gradient
+        intensity_grad[col] = np.gradient(intensity_min_max[col], 1)
+        #x = np.where(np.abs(intensity_grad[col]) <= 0.2, 0, 1)
+        grads = intensity_grad[col].values
+        # hacky convolution trick
+        N = len(grads)
+        grads = np.convolve(grads, np.ones(N) / N, mode='valid')
+        test = (np.max(applied[col].values) + 1) * np.ones(len(applied[col].values)) - np.abs(applied[col].values)
+        #print(test)
+        magic_number = 15
+        grads = np.multiply(test, magic_number * grads)
         print(grads)
-        print(len(grads))
-        grads = np.convolve(grads, np.ones(len(grads))/len(grads), mode='valid')
-        #print(grads)
-        #intensity_grad[col] = grads
-        #adjustment = np.abs(applied[col]) * intensity_grad[col]
-        #print(arr)
-        #arr = applied[col].values * arr
-        #print(arr)
-        #print(intensity)
-        intensity_grad_adj[col] = intensity[col]
-        #print(intensity_grad_adj)
         # 3: substract saturation gradient
-        intensity_min_max[col] = min_max_scaler(intensity_grad_adj[col])
-    plot = plt.plot(applied['45deg'], intensity_min_max['45deg'])
+        intensity_grad_adj[col] = intensity_min_max[col] - grads
+    plot = plt.plot(applied['90deg'], intensity_grad_adj['90deg'])
     plt.show()
     # save to csv boilerplate:
     applied.to_csv('applied.csv', index=None)
