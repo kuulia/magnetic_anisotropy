@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-# helper function for reading files
+# helper function for reading measurement files
 def file_reader(file: str, start: int, end: int) -> pd.DataFrame:
     read = open(file)
     lines = read.readlines()
@@ -59,14 +59,17 @@ def separate_scaler(applied: np.ndarray, intensity: np.ndarray):
     scaled = min_max_scaler(combined)
     return scaled
 
-def sat_gradient(grad_arr: np.ndarray, \
+def sat_gradient(arr: np.ndarray, \
+                 applied_arr: np.ndarray, \
+                 threshold: float, \
                  width: int) -> np.ndarray:
+    grad_arr = np.gradient(arr, applied_arr)
     grad = grad_avg(grad_arr, width)
     grad_mag = np.abs(grad)
     grad_mag = min_max_scaler(pd.Series(grad_mag))
     grad_dir = np.zeros(np.shape(grad_mag))
     for i, el in enumerate(grad_mag):
-        if el<0.2: grad_dir[i] = 0
+        if el<threshold: grad_dir[i] = 0
         else: grad_dir[i] = 1
     list_idx = []
     idx = []
@@ -81,20 +84,18 @@ def sat_gradient(grad_arr: np.ndarray, \
         list_idx.append(idx)
     grads = np.zeros(np.shape(grad))
     for region in list_idx:
-        grad_mean = np.mean(np.abs(grad[region])) / 2
-        sign = 0
-        if np.mean(grad[region])<0: sign = -1 
-        else: sign = 1
-        grads[region] = grad_mean * sign
+        grad_mean = np.polyfit(applied_arr[region], arr[region], 1)[0]
+        grads[region] = grad_mean
     return grads
 
 def main():
 
     intensity = pd.read_csv('intensity.csv')
-    intensity_grad = pd.read_csv('intensity_grad.csv')
+    applied = pd.read_csv('applied.csv')
     #sat_gradient(intensity['0deg'])
     #print(grad_avg(intensity['0deg'], 10))
-    print(sat_gradient(intensity_grad['0deg'], 5))
+    print(sat_gradient(intensity['30deg'].values,
+                       applied['30deg'].values, -0.4, 3))
     #print(grad_avg(intensity_grad['0deg'], 5))
 if __name__ == "__main__":
     main()

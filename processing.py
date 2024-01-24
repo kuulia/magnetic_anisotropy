@@ -18,47 +18,76 @@ def main():
     degs = [0, 15, 30, 45, 60, 75, 88, 90, 92,\
             105, 120, 135, 150, 165, 180, 270]
     ############################################################################
-    #creating lots of pd dataframes to store data:
-    applied, intensity, intensity_grad, \
-        intensity_grad_adj, intensity_min_max,\
-            intensity_grad_min_max,\
-            applied_dir            = [pd.DataFrame(), pd.DataFrame(), 
-                                      pd.DataFrame(), pd.DataFrame(), 
-                                      pd.DataFrame(), pd.DataFrame(),
-                                      pd.DataFrame()]
-    ############################################################################
+    #creating pandas dataframes to store data:
+    applied, intensity, \
+        intensity_grad_adj, intensity_min_max = [pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), \
+                                                 pd.DataFrame()]
+    ###########################################################################
+    # parameters for gradient algorithm
+    params = [(3, -0.4), (7, -0.5), (4, -0.85), (7, 0.1), (7, 0.1), (7, -0.4),\
+              (5, 0.2), (7, 0.2), (5, 0.2),(7, 0.2), (5, 0.2), (5, 0.2),\
+              (5, 0.2), (5, 0.2), (5, 0.2), (5, 0.2)]
+    degs_and_params = dict.fromkeys(degs, params)
+    for i, deg in enumerate(degs):
+        degs_and_params[deg] = params[i]
+    remanence = []
+    coercive_field = []
     for deg in degs: # process data for each degree
         ########################################################################
         col = f'{deg}deg' # column name, 
 
+        # a width parameter for rolling average calculations. The algorithmic
+        # approach needs the width and threshold parameter to determine gradients
+        # and to detect sharp increases
+        width = degs_and_params[deg][0]
+        threshold = degs_and_params[deg][1]
         # read data
         applied[col] = file_reader(f'{col}/loop_data.txt', 0, 9)
         intensity[col] = file_reader(f'{deg}deg/loop_data.txt', 10, 24)
+        gauss_amt = 0.5
+        intensity[col] = (1 - gauss_amt) * intensity[col].values\
+              + gauss_amt * gaussian_filter(intensity[col].values, 2)
         intensity_min_max[col] = separate_scaler(applied[col].values, \
                                             intensity[col].values)
         # calculate gradient
-        intensity_grad[col] = np.gradient(intensity[col], applied[col])
-        sat_grad = sat_gradient(intensity_grad[col].values, 8)
-        grads = sat_grad
-        grads = np.multiply(applied[col], grads)
+        grads = sat_gradient(intensity[col].values,
+                             applied[col].values, threshold, width)
+        grads = np.multiply(applied[col].values, grads)
+        #print(col, grads)
         intensity_grad_adj[col] = intensity[col].values - grads
         intensity_grad_adj[col] = separate_scaler(applied[col].values,
                                                   intensity_grad_adj[col].values)
-        #intensity_grad_adj[col] = min_max_scaler(intensity_grad_adj[col])
         plt.plot(applied[col], intensity_grad_adj[col])
         plt.savefig(f'{col}/grad_corr_plot.png')
         plt.close()
         plt.plot(applied[col], intensity_min_max[col])
         plt.savefig(f'{col}/grad_raw_plot.png')
         plt.close()
-    # save to csv boilerplate:
-    applied.to_csv('applied.csv', index=None)
-    applied_dir.to_csv('applied_dir.csv', index=None)
-    ############################################################################
-    intensity.to_csv('intensity.csv', index=None)
-    intensity_grad.to_csv('intensity_grad.csv', index=None)
-    intensity_grad_adj.to_csv('intensity_grad_adj.csv', index=None)
-    intensity_min_max.to_csv('intensity_min_max.csv', index=None)
+        # calculate remanent magnetization
+        sort_applied = np.sort(np.abs(applied[col].values))
+        idx_of_zero1 = np.where(np.abs(applied[col].values)==sort_applied[0])[0][0]
+        idx_of_zero2 = np.where(np.abs(applied[col].values)==sort_applied[1])[0][0]
+        remanence.append(0.5 * np.abs(intensity_grad_adj[col].values[idx_of_zero1]) \
+                       + 0.5 * np.abs(intensity_grad_adj[col].values[idx_of_zero2]))
+        # calculate coercive field:
+        sort_intensity = np.sort(np.abs(intensity_grad_adj[col].values))
+        idx_of_zero1 = np.where(np.abs(intensity_grad_adj[col].values)==sort_intensity[0])[0][0]
+        idx_of_zero2 = np.where(np.abs(intensity_grad_adj[col].values)==sort_intensity[1])[0][0]
+        coercive_field.append(0.5 * np.abs(applied[col].values[idx_of_zero1]) \
+                            + 0.5 * np.abs(applied[col].values[idx_of_zero2]))
+    print(remanence)
+    linspace_degs = np.linspace(0,270, num=19)
+    # plot remanence:
+    plt.plot(degs, remanence)
+    plt.xticks(linspace_degs, rotation=70)
+    plt.savefig('remanence.png')
+    plt.close()
+
+    # plot coercive field
+    plt.plot(degs, coercive_field)
+    plt.xticks(linspace_degs, rotation=70)
+    plt.savefig('coercive_field.png')
+    plt.close()
 
 if __name__ == "__main__":
 	main()
