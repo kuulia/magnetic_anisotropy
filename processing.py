@@ -10,6 +10,7 @@ from saturation_gradient import file_reader
 from saturation_gradient import grad_avg
 from saturation_gradient import sat_gradient
 from saturation_gradient import min_max_scaler
+from saturation_gradient import separate_scaler
 ################################################################################
 
 def main():
@@ -33,67 +34,23 @@ def main():
         # read data
         applied[col] = file_reader(f'{col}/loop_data.txt', 0, 9)
         intensity[col] = file_reader(f'{deg}deg/loop_data.txt', 10, 24)
-
-        ########################################################################
-        # An insanely hacky trick of dividing the data into two parts and 
-        # min max scaling them separately to reduce the drift effect.
-        # First it determines, whether the applied field is increasing -> 1 or 
-        # decreasing -> 0 by calculating a rolling average of the gradient and
-        # converting it to a binary mapping. [0, 0, 0,... 1, 1, 1] etc.
-        # Then zeros are mapped to nans so that the min_max_scaler function
-        # scales only the values not nan.
-        applied_dir[col] = np.gradient(applied[col])
-        bin_grad = grad_avg(applied_dir[col].values, 5)
-        for i, el in enumerate(bin_grad):
-            if el<0: bin_grad[i] = 0
-            else: bin_grad[i] = 1
-        # Multiply with the data
-        scale1st = np.multiply(intensity[col].values, bin_grad)
-        # Map zeros to nans 
-        scale1st[scale1st==0] = np.nan
-        scale1st = min_max_scaler(pd.Series(scale1st))
-        scale1st = scale1st.fillna(0)
-        # binary inverse "bit flip" (1 - binary_mapping):
-        scale2nd = np.multiply(intensity[col].values, 1 - bin_grad)
-        scale2nd[scale2nd==0] = np.nan
-        scale2nd = min_max_scaler(pd.Series(scale2nd))
-        scale2nd[scale2nd==np.nan] = 0
-        scale2nd = scale2nd.fillna(0)
-        combined = pd.Series(scale1st.values + scale2nd.values)
-        intensity_min_max[col] = min_max_scaler(intensity[col] * bin_grad)
-        intensity_min_max[col] = min_max_scaler(combined)
-        ########################################################################
-
+        intensity_min_max[col] = separate_scaler(applied[col].values, \
+                                            intensity[col].values)
         # calculate gradient
         intensity_grad[col] = np.gradient(intensity[col], applied[col])
-        grads = sat_gradient(intensity_grad[col].values, 8)
-        print(col, np.mean(grads))
-        dir_grads = np.zeros(np.shape(intensity_grad[col].values))
-        print(intensity_grad[col].values)
-        roll_avg_grad = grad_avg(intensity_grad[col].values, 10)
-        for i, el in enumerate(roll_avg_grad):
-            if el > 0: dir_grads[i] = 1
-            else: dir_grads[i] = -1
-        print(dir_grads)
-        grad = np.multiply(np.mean(grads), dir_grads)
-        print(grad)
-        #print(np.sort(np.abs(intensity_grad[col])))
-        #sorted_grad = np.sort(np.abs(intensity_grad[col]))
-        #avg_grad = np.mean(sorted_grad[3:13])
-        #print(avg_grad)
-        #intensity_grad_min_max[col] = min_max_scaler(intensity_grad[col])
-        #grads = intensity_grad[col].values
-        #grads_min_max = intensity_grad_min_max[col].values
-        #print(grads_min_max)
-       # grads = grad_avg(grads, 6)
-        grad = np.multiply(applied[col], grad)
-
-        intensity_grad_adj[col] = intensity[col].values - grad
-        intensity_grad_adj[col] = min_max_scaler(intensity_grad_adj[col])
-    plot = plt.plot(applied['0deg'], intensity_grad_adj['0deg'])
-    plt.show()
-    plot = plt.plot(applied['0deg'], intensity_min_max['0deg'])
-    plt.show()
+        sat_grad = sat_gradient(intensity_grad[col].values, 8)
+        grads = sat_grad
+        grads = np.multiply(applied[col], grads)
+        intensity_grad_adj[col] = intensity[col].values - grads
+        intensity_grad_adj[col] = separate_scaler(applied[col].values,
+                                                  intensity_grad_adj[col].values)
+        #intensity_grad_adj[col] = min_max_scaler(intensity_grad_adj[col])
+        plt.plot(applied[col], intensity_grad_adj[col])
+        plt.savefig(f'{col}/grad_corr_plot.png')
+        plt.close()
+        plt.plot(applied[col], intensity_min_max[col])
+        plt.savefig(f'{col}/grad_raw_plot.png')
+        plt.close()
     # save to csv boilerplate:
     applied.to_csv('applied.csv', index=None)
     applied_dir.to_csv('applied_dir.csv', index=None)
