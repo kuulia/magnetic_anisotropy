@@ -86,6 +86,26 @@ def sat_gradient(arr: np.ndarray, \
     for region in list_idx:
         grad_mean = np.polyfit(applied_arr[region], arr[region], 1)[0]
         grads[region] = grad_mean
+    zero_regions = np.where(grads==0)[0]
+    seq = []
+    temp = []
+    for i, el in enumerate(zero_regions):
+        if i < len(zero_regions) - 1:
+            if zero_regions[i + 1] == el + 1:
+                temp.append(el)
+            else:
+                temp.append(el)
+                seq.append(temp)
+                temp = []
+    temp.append(el)
+    seq.append(temp)
+    for region in seq:
+        middle = round(len(region) / 2)
+        for i, el in enumerate(region):
+            if i < middle:
+                grads[el] = grads[region[0] - 1]
+            else:
+                grads[el] = grads[region[len(region) - 1] + 1]
     return grads
 
 def main():
@@ -94,8 +114,8 @@ def main():
     applied = pd.read_csv('applied.csv')
     #sat_gradient(intensity['0deg'])
     #print(grad_avg(intensity['0deg'], 10))
-    print(sat_gradient(intensity['30deg'].values,
-                       applied['30deg'].values, -0.4, 3))
+    sat_gradient(intensity['15deg'].values,
+                       applied['15deg'].values, -0.5, 7)
     #print(grad_avg(intensity_grad['0deg'], 5))
 if __name__ == "__main__":
     main()

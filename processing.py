@@ -44,9 +44,6 @@ def main():
         # read data
         applied[col] = file_reader(f'{col}/loop_data.txt', 0, 9)
         intensity[col] = file_reader(f'{deg}deg/loop_data.txt', 10, 24)
-        gauss_amt = 0.5
-        intensity[col] = (1 - gauss_amt) * intensity[col].values\
-              + gauss_amt * gaussian_filter(intensity[col].values, 2)
         intensity_min_max[col] = separate_scaler(applied[col].values, \
                                             intensity[col].values)
         # calculate gradient
@@ -55,12 +52,19 @@ def main():
         grads = np.multiply(applied[col].values, grads)
         #print(col, grads)
         intensity_grad_adj[col] = intensity[col].values - grads
+        gauss_amt = 0.5
+        intensity_grad_adj[col] = (1 - gauss_amt) * intensity_grad_adj[col].values\
+              + gauss_amt * gaussian_filter(intensity_grad_adj[col].values, 2)
         intensity_grad_adj[col] = separate_scaler(applied[col].values,
                                                   intensity_grad_adj[col].values)
         plt.plot(applied[col], intensity_grad_adj[col])
+        plt.xlabel('Applied field (H)')
+        plt.ylabel('Intensity (I)')
         plt.savefig(f'{col}/grad_corr_plot.png')
         plt.close()
         plt.plot(applied[col], intensity_min_max[col])
+        plt.xlabel('Applied field (H)')
+        plt.ylabel('Intensity (I)')
         plt.savefig(f'{col}/grad_raw_plot.png')
         plt.close()
         # calculate remanent magnetization
@@ -78,16 +82,22 @@ def main():
     print(remanence)
     linspace_degs = np.linspace(0,270, num=19)
     # plot remanence:
-    plt.plot(degs, remanence)
+    plt.plot(degs, remanence, 'bo--')
+    plt.xlabel('Angle $\psi$ ($^\circ$)')
+    plt.ylabel('Remanence')
     plt.xticks(linspace_degs, rotation=70)
+    plt.tight_layout()
     plt.savefig('remanence.png')
     plt.close()
 
     # plot coercive field
-    plt.plot(degs, coercive_field)
+    plt.plot(degs, coercive_field, 'ro--')
+    plt.xlabel('Angle $\psi$ ($^\circ$)')
+    plt.ylabel('Coercivity field $H_s$')
     plt.xticks(linspace_degs, rotation=70)
+    plt.tight_layout()
     plt.savefig('coercive_field.png')
     plt.close()
-
+    
 if __name__ == "__main__":
 	main()
