@@ -99,7 +99,7 @@ def sat_gradient(arr: np.ndarray, \
                 temp = []
     temp.append(el)
     seq.append(temp)
-    for region in seq:
+    for region in seq:  
         middle = round(len(region) / 2)
         for i, el in enumerate(region):
             if i < middle:

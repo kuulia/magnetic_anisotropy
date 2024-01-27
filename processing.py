@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math as m
 from scipy.ndimage import gaussian_filter
+from scipy.signal import savgol_filter
 from saturation_gradient import file_reader
 from saturation_gradient import grad_avg
 from saturation_gradient import sat_gradient
@@ -55,16 +56,19 @@ def main():
         gauss_amt = 0.5
         intensity_grad_adj[col] = (1 - gauss_amt) * intensity_grad_adj[col].values\
               + gauss_amt * gaussian_filter(intensity_grad_adj[col].values, 2)
+        savgol_amt = 0.7
+        intensity_grad_adj[col] = (1 - savgol_amt) * intensity_grad_adj[col].values\
+              + savgol_amt * savgol_filter(intensity_grad_adj[col].values, 5, 3)
         intensity_grad_adj[col] = separate_scaler(applied[col].values,
                                                   intensity_grad_adj[col].values)
         plt.plot(applied[col], intensity_grad_adj[col])
-        plt.xlabel('Applied field (H)')
-        plt.ylabel('Intensity (I)')
+        plt.xlabel('Applied field $H$ (mT)')
+        plt.ylabel('Intensity $I$ ($M/M_s$)')
         plt.savefig(f'{col}/grad_corr_plot.png')
         plt.close()
-        plt.plot(applied[col], intensity_min_max[col])
-        plt.xlabel('Applied field (H)')
-        plt.ylabel('Intensity (I)')
+        plt.plot(applied[col], intensity[col])
+        plt.xlabel('Applied field $H$ (mT)')
+        plt.ylabel('Intensity $I$ ($M$)')
         plt.savefig(f'{col}/grad_raw_plot.png')
         plt.close()
         # calculate remanent magnetization
