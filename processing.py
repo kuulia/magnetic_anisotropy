@@ -12,6 +12,7 @@ from saturation_gradient import grad_avg
 from saturation_gradient import sat_gradient
 from saturation_gradient import min_max_scaler
 from saturation_gradient import separate_scaler
+from saturation_gradient import find_roots
 ################################################################################
 
 def main():
@@ -26,8 +27,11 @@ def main():
     ###########################################################################
     # parameters for gradient algorithm
     params = [(3, -0.4), (7, -0.5), (4, -0.85), (7, 0.1), (7, 0.1), (7, -0.4),\
-              (5, 0.2), (7, 0.2), (5, 0.2),(7, 0.2), (5, 0.2), (5, 0.2),\
+              (3, 0.8), (3, 0.8), (3, 0.8), (7, 0.2), (5, 0.2), (5, 0.2),\
               (5, 0.2), (5, 0.2), (5, 0.2), (5, 0.2)]
+    # filter amount
+    gauss_amt = 0.5
+    savgol_amt = 0.7
     degs_and_params = dict.fromkeys(degs, params)
     for i, deg in enumerate(degs):
         degs_and_params[deg] = params[i]
@@ -52,15 +56,22 @@ def main():
                              applied[col].values, threshold, width)
         grads = np.multiply(applied[col].values, grads)
         #print(col, grads)
-        intensity_grad_adj[col] = intensity[col].values - grads
-        gauss_amt = 0.5
-        intensity_grad_adj[col] = (1 - gauss_amt) * intensity_grad_adj[col].values\
-              + gauss_amt * gaussian_filter(intensity_grad_adj[col].values, 2)
-        savgol_amt = 0.7
-        intensity_grad_adj[col] = (1 - savgol_amt) * intensity_grad_adj[col].values\
-              + savgol_amt * savgol_filter(intensity_grad_adj[col].values, 5, 3)
-        intensity_grad_adj[col] = separate_scaler(applied[col].values,
-                                                  intensity_grad_adj[col].values)
+        intensity_grad_adj[col] = intensity[col].values
+        if deg not in [88, 90, 92, 105, 120, 135, 270]:
+            intensity_grad_adj[col] = intensity_grad_adj[col].values - grads
+            intensity_grad_adj[col] = (1 - gauss_amt) * intensity_grad_adj[col].values\
+                + gauss_amt * gaussian_filter(intensity_grad_adj[col].values, 2)
+            intensity_grad_adj[col] = (1 - savgol_amt) * intensity_grad_adj[col].values\
+                + savgol_amt * savgol_filter(intensity_grad_adj[col].values, 5, 3)
+            intensity_grad_adj[col] = separate_scaler(applied[col].values,
+                                                        intensity_grad_adj[col].values)
+        else:
+            intensity_grad_adj[col] = (1 - gauss_amt) * intensity_grad_adj[col].values\
+                + gauss_amt * gaussian_filter(intensity_grad_adj[col].values, 2)
+            intensity_grad_adj[col] = (1 - savgol_amt) * intensity_grad_adj[col].values\
+                + savgol_amt * savgol_filter(intensity_grad_adj[col].values, 5, 3)
+            intensity_grad_adj[col] = separate_scaler(applied[col].values,
+                                                        intensity_grad_adj[col].values)
         plt.plot(applied[col], intensity_grad_adj[col])
         plt.xlabel('Applied field $H$ (mT)')
         plt.ylabel('Intensity $I$ ($M/M_s$)')
@@ -72,17 +83,13 @@ def main():
         plt.savefig(f'{col}/grad_raw_plot.png')
         plt.close()
         # calculate remanent magnetization
-        sort_applied = np.sort(np.abs(applied[col].values))
-        idx_of_zero1 = np.where(np.abs(applied[col].values)==sort_applied[0])[0][0]
-        idx_of_zero2 = np.where(np.abs(applied[col].values)==sort_applied[1])[0][0]
-        remanence.append(0.5 * np.abs(intensity_grad_adj[col].values[idx_of_zero1]) \
-                       + 0.5 * np.abs(intensity_grad_adj[col].values[idx_of_zero2]))
+        remanence.append(np.mean(np.abs(find_roots(intensity_grad_adj[col].values, applied[col].values))))
         # calculate coercive field:
-        sort_intensity = np.sort(np.abs(intensity_grad_adj[col].values))
-        idx_of_zero1 = np.where(np.abs(intensity_grad_adj[col].values)==sort_intensity[0])[0][0]
-        idx_of_zero2 = np.where(np.abs(intensity_grad_adj[col].values)==sort_intensity[1])[0][0]
-        coercive_field.append(0.5 * np.abs(applied[col].values[idx_of_zero1]) \
-                            + 0.5 * np.abs(applied[col].values[idx_of_zero2]))
+        intercepts = find_roots(applied[col].values, intensity_grad_adj[col].values)
+        if len(intercepts) == 4:
+            intercepts = np.array([intercepts[1], intercepts[3]])
+        print(deg, intercepts)
+        coercive_field.append(np.mean(np.abs(intercepts)))
     print(remanence)
     linspace_degs = np.linspace(0,270, num=19)
     # plot remanence:
@@ -103,5 +110,6 @@ def main():
     plt.savefig('coercive_field.png')
     plt.close()
     
+    intensity_grad_adj.to_csv('intensity_grad_adj.csv',index=False)
 if __name__ == "__main__":
 	main()

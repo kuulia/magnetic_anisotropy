@@ -108,14 +108,6 @@ def sat_gradient(arr: np.ndarray, \
                 grads[el] = grads[region[len(region) - 1] + 1]
     return grads
 
-def main():
-
-    intensity = pd.read_csv('intensity.csv')
-    applied = pd.read_csv('applied.csv')
-    #sat_gradient(intensity['0deg'])
-    #print(grad_avg(intensity['0deg'], 10))
-    sat_gradient(intensity['15deg'].values,
-                       applied['15deg'].values, -0.5, 7)
-    #print(grad_avg(intensity_grad['0deg'], 5))
-if __name__ == "__main__":
-    main()
+def find_roots(x,y):
+    s = np.abs(np.diff(np.sign(y))).astype(bool)
+    return x[:-1][s] + np.diff(x)[s]/(np.abs(y[1:][s]/y[:-1][s])+1)
