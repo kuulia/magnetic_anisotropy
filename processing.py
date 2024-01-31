@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import math as m
 from scipy.ndimage import gaussian_filter
 from scipy.signal import savgol_filter
+from scipy import constants
 from saturation_gradient import file_reader
 from saturation_gradient import grad_avg
 from saturation_gradient import sat_gradient
@@ -17,7 +18,7 @@ from saturation_gradient import find_roots
 
 def main():
     # measured degrees:
-    degs = [0, 15, 30, 45, 60, 75, 88, 90, 92,\
+    degs = [0, 15, 30, 45, 60, 75, 90,\
             105, 120, 135, 150, 165, 180, 270]
     ############################################################################
     #creating pandas dataframes to store data:
@@ -55,9 +56,8 @@ def main():
         grads = sat_gradient(intensity[col].values,
                              applied[col].values, threshold, width)
         grads = np.multiply(applied[col].values, grads)
-        #print(col, grads)
         intensity_grad_adj[col] = intensity[col].values
-        if deg not in [88, 90, 92, 105, 120, 135, 270]:
+        if deg not in [88, 90, 105, 120, 135, 270]:
             intensity_grad_adj[col] = intensity_grad_adj[col].values - grads
             intensity_grad_adj[col] = (1 - gauss_amt) * intensity_grad_adj[col].values\
                 + gauss_amt * gaussian_filter(intensity_grad_adj[col].values, 2)
@@ -88,14 +88,12 @@ def main():
         intercepts = find_roots(applied[col].values, intensity_grad_adj[col].values)
         if len(intercepts) == 4:
             intercepts = np.array([intercepts[1], intercepts[3]])
-        print(deg, intercepts)
         coercive_field.append(np.mean(np.abs(intercepts)))
-    print(remanence)
     linspace_degs = np.linspace(0,270, num=19)
     # plot remanence:
     plt.plot(degs, remanence, 'bo--')
     plt.xlabel('Angle $\psi$ ($^\circ$)')
-    plt.ylabel('Remanence')
+    plt.ylabel('Remanence ($M/M_s$)')
     plt.xticks(linspace_degs, rotation=70)
     plt.tight_layout()
     plt.savefig('remanence.png')
@@ -104,12 +102,40 @@ def main():
     # plot coercive field
     plt.plot(degs, coercive_field, 'ro--')
     plt.xlabel('Angle $\psi$ ($^\circ$)')
-    plt.ylabel('Coercivity field $H_s$')
+    plt.ylabel('Coercivity field $H_c$')
     plt.xticks(linspace_degs, rotation=70)
     plt.tight_layout()
     plt.savefig('coercive_field.png')
     plt.close()
     
-    intensity_grad_adj.to_csv('intensity_grad_adj.csv',index=False)
+    for deg in [90]:
+        col = f'{deg}deg'
+        intensity_grad_adj.to_csv('intensity_grad_adj.csv',index=False)
+        n = len(intensity_grad_adj[col].values)
+        y = intensity_grad_adj[col].values[0:round(n/2)]
+        x = applied[col].values[0:round(n/2)]
+        idx = np.where(np.logical_and(x>=-0.6, x<=0.8))
+        x = x[idx] * 795.77471545947673925 # conversion mT -> A / m
+        M_sat = 1.2 * 10**(6) # (units A / m)
+        y = y[idx] * M_sat # conversion m = M/M_sat -> M = m*M_sat (units A / m)
+        lin_fit = np.polyfit(x, y, 1)
+        mu_0 = constants.value('vacuum mag. permeability')
+        K_mu = mu_0 * M_sat * lin_fit[0]
+
+        y = intensity_grad_adj[col].values[0:round(n/2)]
+        x = applied[col].values[0:round(n/2)]
+        x = x[idx]
+        y = y[idx]
+        plt.plot(x, y, 'r*')
+        lin_fit = np.polyfit(x, y, 1)
+        print(f'The anisotropy constant is: {K_mu}')
+        plt.plot(applied[col], intensity_grad_adj[col])
+        plt.plot(np.linspace(-2, 3), (np.linspace(-2, 3) * lin_fit[0]) + lin_fit[1], '--', 
+                color='orange')
+        plt.ylim([-1.05, 1.05])
+        plt.xlabel('Applied field $H$ (mT)')
+        plt.ylabel('Intensity $I$ ($M/M_s$)')
+        plt.savefig(f'{col}/fit.png')
+        plt.close()
 if __name__ == "__main__":
 	main()
