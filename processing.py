@@ -47,8 +47,8 @@ def main():
         width = degs_and_params[deg][0]
         threshold = degs_and_params[deg][1]
         # read data
-        applied[col] = file_reader(f'{col}/loop_data.txt', 0, 9)
-        intensity[col] = file_reader(f'{deg}deg/loop_data.txt', 10, 24)
+        applied[col] = file_reader(f'datafiles/{col}/loop_data.txt', 0, 9)
+        intensity[col] = file_reader(f'datafiles/{col}/loop_data.txt', 10, 24)
         intensity_min_max[col] = separate_scaler(applied[col].values, \
                                             intensity[col].values)
         # calculate gradient
@@ -74,12 +74,12 @@ def main():
         plt.plot(applied[col], intensity_grad_adj[col])
         plt.xlabel('Applied field $H$ (mT)')
         plt.ylabel('Intensity $I$ ($M/M_s$)')
-        plt.savefig(f'{col}/grad_corr_plot.png')
+        plt.savefig(f'datafiles/{col}/grad_corr_plot.png')
         plt.close()
         plt.plot(applied[col], intensity[col])
         plt.xlabel('Applied field $H$ (mT)')
         plt.ylabel('Intensity $I$ ($M$)')
-        plt.savefig(f'{col}/grad_raw_plot.png')
+        plt.savefig(f'datafiles/{col}/grad_raw_plot.png')
         plt.close()
         # calculate remanent magnetization
         print(f'The remanence at {deg} is:', \
@@ -99,7 +99,7 @@ def main():
     plt.ylabel('Remanence ($M/M_s$)')
     plt.xticks(linspace_degs, rotation=70)
     plt.tight_layout()
-    plt.savefig('remanence.png')
+    plt.savefig('datafiles/remanence.png')
     plt.close()
 
     # plot coercive field
@@ -108,17 +108,17 @@ def main():
     plt.ylabel('Coercivity field $H_c$')
     plt.xticks(linspace_degs, rotation=70)
     plt.tight_layout()
-    plt.savefig('coercive_field.png')
+    plt.savefig('datafiles/coercive_field.png')
     plt.close()
     
     # to csv boilerplate
-    intensity_grad_adj.to_csv('intensity_grad_adj.csv',index=False)
-    intensity.to_csv('intensity_raw.csv',index=False)
-    intensity_min_max.to_csv('intensity_min_max.csv',index=False)
-    applied.to_csv('applied_H.csv',index=False)
+    intensity_grad_adj.to_csv('datafiles/intensity_grad_adj.csv',index=False)
+    intensity.to_csv('datafiles/intensity_raw.csv',index=False)
+    intensity_min_max.to_csv('datafiles/intensity_min_max.csv',index=False)
+    applied.to_csv('datafiles/applied_H.csv',index=False)
 
     # calculate the anisotropy constant from the hard axis data 
-    col = f'90deg'
+    col = '90deg'
     n = len(intensity_grad_adj[col].values)
     y = intensity_grad_adj[col].values[0:round(n/2)]
     x = applied[col].values[0:round(n/2)]
@@ -143,7 +143,7 @@ def main():
     plt.ylim([-1.05, 1.05])
     plt.xlabel('Applied field $H$ (mT)')
     plt.ylabel('Intensity $I$ ($M/M_s$)')
-    plt.savefig(f'{col}/fit.png')
+    plt.savefig(f'datafiles/{col}/fit.png')
     plt.close()
 if __name__ == "__main__":
 	main()
