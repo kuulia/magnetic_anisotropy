@@ -108,6 +108,7 @@ def sat_gradient(arr: np.ndarray, \
                 grads[el] = grads[region[len(region) - 1] + 1]
     return grads
 
+# find 0-intercepts
 def find_roots(x,y):
     s = np.abs(np.diff(np.sign(y))).astype(bool)
     return x[:-1][s] + np.diff(x)[s]/(np.abs(y[1:][s]/y[:-1][s])+1)

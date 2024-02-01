@@ -31,6 +31,8 @@ def main():
               (3, 0.8), (3, 0.8), (3, 0.8), (7, 0.2), (5, 0.2), (5, 0.2),\
               (5, 0.2), (5, 0.2), (5, 0.2), (5, 0.2)]
     # filter amount
+    # set these to 0.0 for calculating remanence and coercivity 
+    # for plotting gauss = 0.5, savgol = 0.7 were used
     gauss_amt = 0.5
     savgol_amt = 0.7
     degs_and_params = dict.fromkeys(degs, params)
@@ -83,11 +85,15 @@ def main():
         plt.savefig(f'{col}/grad_raw_plot.png')
         plt.close()
         # calculate remanent magnetization
+        print(f'The remanence at {deg} is:', \
+              np.round(find_roots(intensity_grad_adj[col].values, applied[col].values), 3))
         remanence.append(np.mean(np.abs(find_roots(intensity_grad_adj[col].values, applied[col].values))))
         # calculate coercive field:
         intercepts = find_roots(applied[col].values, intensity_grad_adj[col].values)
         if len(intercepts) == 4:
             intercepts = np.array([intercepts[1], intercepts[3]])
+        print(f'The coercivity at {deg} is:', np.round(intercepts, 3))
+        print('---------------------------------------------------')
         coercive_field.append(np.mean(np.abs(intercepts)))
     linspace_degs = np.linspace(0,270, num=19)
     # plot remanence:
@@ -108,34 +114,33 @@ def main():
     plt.savefig('coercive_field.png')
     plt.close()
     
-    for deg in [90]:
-        col = f'{deg}deg'
-        intensity_grad_adj.to_csv('intensity_grad_adj.csv',index=False)
-        n = len(intensity_grad_adj[col].values)
-        y = intensity_grad_adj[col].values[0:round(n/2)]
-        x = applied[col].values[0:round(n/2)]
-        idx = np.where(np.logical_and(x>=-0.6, x<=0.8))
-        x = x[idx] * 795.77471545947673925 # conversion mT -> A / m
-        M_sat = 1.2 * 10**(6) # (units A / m)
-        y = y[idx] * M_sat # conversion m = M/M_sat -> M = m*M_sat (units A / m)
-        lin_fit = np.polyfit(x, y, 1)
-        mu_0 = constants.value('vacuum mag. permeability')
-        K_mu = mu_0 * M_sat * lin_fit[0]
+    col = f'90deg'
+    intensity_grad_adj.to_csv('intensity_grad_adj.csv',index=False)
+    n = len(intensity_grad_adj[col].values)
+    y = intensity_grad_adj[col].values[0:round(n/2)]
+    x = applied[col].values[0:round(n/2)]
+    idx = np.where(np.logical_and(x>=-0.6, x<=0.8))
+    x = x[idx] * 795.77471545947673925 # conversion mT -> A / m
+    M_sat = 1.2 * 10**(6) # (units A / m)
+    y = y[idx] * M_sat # conversion m = M/M_sat -> M = m*M_sat (units A / m)
+    lin_fit = np.polyfit(x, y, 1)
+    mu_0 = constants.value('vacuum mag. permeability')
+    K_mu = mu_0 * M_sat * lin_fit[0]
 
-        y = intensity_grad_adj[col].values[0:round(n/2)]
-        x = applied[col].values[0:round(n/2)]
-        x = x[idx]
-        y = y[idx]
-        plt.plot(x, y, 'r*')
-        lin_fit = np.polyfit(x, y, 1)
-        print(f'The anisotropy constant is: {K_mu}')
-        plt.plot(applied[col], intensity_grad_adj[col])
-        plt.plot(np.linspace(-2, 3), (np.linspace(-2, 3) * lin_fit[0]) + lin_fit[1], '--', 
-                color='orange')
-        plt.ylim([-1.05, 1.05])
-        plt.xlabel('Applied field $H$ (mT)')
-        plt.ylabel('Intensity $I$ ($M/M_s$)')
-        plt.savefig(f'{col}/fit.png')
-        plt.close()
+    y = intensity_grad_adj[col].values[0:round(n/2)]
+    x = applied[col].values[0:round(n/2)]
+    x = x[idx]
+    y = y[idx]
+    plt.plot(x, y, 'r*')
+    lin_fit = np.polyfit(x, y, 1)
+    print(f'The anisotropy constant is: {K_mu}')
+    plt.plot(applied[col], intensity_grad_adj[col])
+    plt.plot(np.linspace(-2, 3), (np.linspace(-2, 3) * lin_fit[0]) + lin_fit[1], '--', 
+            color='orange')
+    plt.ylim([-1.05, 1.05])
+    plt.xlabel('Applied field $H$ (mT)')
+    plt.ylabel('Intensity $I$ ($M/M_s$)')
+    plt.savefig(f'{col}/fit.png')
+    plt.close()
 if __name__ == "__main__":
 	main()
