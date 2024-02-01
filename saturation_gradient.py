@@ -1,3 +1,7 @@
+# Date: 01 Feb 2024
+# Author: Linus Lind
+# LICENSED UNDER: GNU General Public GPLv3 License
+# Import this file
 import pandas as pd
 import numpy as np
 

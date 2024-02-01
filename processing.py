@@ -1,17 +1,14 @@
-# Date: 18 Jan 2024
+# Date: 01 Feb 2024
 # Author: Linus Lind
 # LICENSED UNDER: GNU General Public GPLv3 License
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import math as m
 from scipy.ndimage import gaussian_filter
 from scipy.signal import savgol_filter
 from scipy import constants
 from saturation_gradient import file_reader
-from saturation_gradient import grad_avg
 from saturation_gradient import sat_gradient
-from saturation_gradient import min_max_scaler
 from saturation_gradient import separate_scaler
 from saturation_gradient import find_roots
 ################################################################################
@@ -114,8 +111,14 @@ def main():
     plt.savefig('coercive_field.png')
     plt.close()
     
-    col = f'90deg'
+    # to csv boilerplate
     intensity_grad_adj.to_csv('intensity_grad_adj.csv',index=False)
+    intensity.to_csv('intensity_raw.csv',index=False)
+    intensity_min_max.to_csv('intensity_min_max.csv',index=False)
+    applied.to_csv('applied_H.csv',index=False)
+
+    # calculate the anisotropy constant from the hard axis data 
+    col = f'90deg'
     n = len(intensity_grad_adj[col].values)
     y = intensity_grad_adj[col].values[0:round(n/2)]
     x = applied[col].values[0:round(n/2)]
